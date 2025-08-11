@@ -17,10 +17,11 @@ class Calculator:
         if not expression or expression.isspace():
             return None
         tokens = expression.strip().split()
-        return self._evaluate_infix(tokens)
+        postfix = self._infix_to_postfix(tokens)
+        return self._evaluate_postfix(postfix)
 
-    def _evaluate_infix(self, tokens):
-        values = []
+    def _infix_to_postfix(self, tokens):
+        output = []
         operators = []
 
         for token in tokens:
@@ -30,30 +31,38 @@ class Calculator:
                     and operators[-1] in self.operators
                     and self.precedence[operators[-1]] >= self.precedence[token]
                 ):
-                    self._apply_operator(operators, values)
+                    output.append(operators.pop())
                 operators.append(token)
+            elif token == '(':
+                operators.append(token)
+            elif token == ')':
+                while operators and operators[-1] != '(':
+                    output.append(operators.pop())
+                operators.pop()  
             else:
                 try:
-                    values.append(float(token))
+                    output.append(float(token))
                 except ValueError:
                     raise ValueError(f"invalid token: {token}")
 
         while operators:
-            self._apply_operator(operators, values)
+            output.append(operators.pop())
 
-        if len(values) != 1:
-            raise ValueError("invalid expression")
+        return output
 
-        return values[0]
+    def _evaluate_postfix(self, tokens):
+        stack = []
+        for token in tokens:
+            if token in self.operators:
+                if len(stack) < 2:
+                    raise ValueError("Not enough operands")
+                operand2 = stack.pop()
+                operand1 = stack.pop()
+                result = self.operators[token](operand1, operand2)
+                stack.append(result)
+            else:
+                stack.append(float(token))
 
-    def _apply_operator(self, operators, values):
-        if not operators:
-            return
-
-        operator = operators.pop()
-        if len(values) < 2:
-            raise ValueError(f"not enough operands for operator {operator}")
-
-        b = values.pop()
-        a = values.pop()
-        values.append(self.operators[operator](a, b))
+        if len(stack) != 1:
+            raise ValueError("Invalid expression")
+        return stack[0]
